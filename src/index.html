@@ -1,32 +1,1818 @@
 <!DOCTYPE html>
-<html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <link rel="stylesheet" href="styles.css" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>PakePlus App</title>
-        <script type="module" src="/main.js" defer></script>
-    </head>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>电池与OTG控制系统</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #0c1a25, #1a2b3c, #2c3e50);
+            color: #e6e6e6;
+            line-height: 1.5;
+            min-height: 100vh;
+            padding: 15px;
+            font-size: 14px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 10px;
+            padding: 12px 20px;
+            margin-bottom: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .status-item {
+            display: flex;
+            align-items: center;
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 10px;
+            background-color: #ff4757;
+            box-shadow: 0 0 8px #ff4757;
+        }
+        
+        .status-indicator.connected {
+            background-color: #2ed573;
+            box-shadow: 0 0 8px #2ed573;
+        }
+        
+        .status-indicator.scanning {
+            background-color: #ffcc00;
+            box-shadow: 0 0 8px #ffcc00;
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .connection-info {
+            font-size: 0.8rem;
+            color: #aaa;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .panel {
+            background: rgba(20, 30, 48, 0.85);
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(8px);
+            height: 100%;
+        }
+        
+        .panel-title {
+            color: #00d4ff;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(0, 212, 255, 0.3);
+            display: flex;
+            align-items: center;
+            font-size: 1.2rem;
+        }
+        
+        .panel-title i {
+            margin-right: 10px;
+            font-size: 1rem;
+        }
+        
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .metric-card {
+            background: rgba(30, 40, 60, 0.7);
+            border-radius: 8px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            transition: transform 0.3s, box-shadow 0.3s;
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            min-height: 100px;
+        }
+        
+        .metric-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 12px rgba(0, 0, 0, 0.3);
+        }
+        
+        .metric-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #00d4ff;
+            margin: 8px 0;
+            text-shadow: 0 1px 4px rgba(0, 212, 255, 0.3);
+        }
+        
+        .metric-label {
+            color: #b0e0e6;
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+        }
+        
+        .metric-unit {
+            color: #aaa;
+            font-size: 0.85rem;
+        }
+        
+        .control-group {
+            margin-bottom: 15px;
+        }
+        
+        .control-label {
+            display: block;
+            margin-bottom: 8px;
+            color: #b0e0e6;
+            font-weight: 500;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .range-value {
+            color: #00d4ff;
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+        
+        .range-slider {
+            width: 100%;
+            height: 8px;
+            -webkit-appearance: none;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            outline: none;
+        }
+        
+        .range-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #00d4ff;
+            cursor: pointer;
+            box-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
+        }
+        
+        .control-input {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 6px;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            background: rgba(0, 0, 0, 0.3);
+            color: #fff;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        .control-input:focus {
+            outline: none;
+            border-color: #00d4ff;
+            box-shadow: 0 0 6px rgba(0, 212, 255, 0.2);
+        }
+        
+        .buttons-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        button {
+            padding: 10px 15px;
+            border-radius: 6px;
+            border: none;
+            background: linear-gradient(to right, #0062cc, #00d4ff);
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            flex: 1;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0, 212, 255, 0.4);
+        }
+        
+        button:disabled {
+            background: #555;
+            color: #aaa;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .danger-btn {
+            background: linear-gradient(to right, #cc0000, #ff4757);
+        }
+        
+        .danger-btn:hover {
+            box-shadow: 0 4px 10px rgba(255, 71, 87, 0.4);
+        }
+        
+        .success-btn {
+            background: linear-gradient(to right, #00b09b, #96c93d);
+        }
+        
+        .success-btn:hover {
+            box-shadow: 0 4px 10px rgba(0, 176, 155, 0.4);
+        }
+        
+        .switch-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .switch-label {
+            font-size: 1rem;
+            font-weight: 500;
+        }
+        
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 30px;
+        }
+        
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #555;
+            transition: .3s;
+            border-radius: 30px;
+        }
+        
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 22px;
+            width: 22px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .slider {
+            background-color: #00d4ff;
+        }
+        
+        input:checked + .slider:before {
+            transform: translateX(30px);
+        }
+        
+        .communication-panel {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        
+        .connection-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .port-select {
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            background: rgba(0, 0, 0, 0.3);
+            color: white;
+            min-width: 180px;
+            font-size: 14px;
+        }
+        
+        .baud-select {
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            background: rgba(0, 0, 0, 0.3);
+            color: white;
+            width: 100px;
+            font-size: 14px;
+        }
+        
+        .settings-group {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .settings-title {
+            color: #b0e0e6;
+            margin-bottom: 12px;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .range-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 5px;
+            font-size: 0.85rem;
+            color: #888;
+        }
+        
+        .voltage-indicator {
+            display: flex;
+            align-items: center;
+            margin-top: 8px;
+            padding: 6px 10px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 6px;
+            font-size: 0.85rem;
+        }
+        
+        .voltage-indicator i {
+            margin-right: 8px;
+            color: #ffcc00;
+            font-size: 0.9rem;
+        }
+        
+        .receive-buffer-info {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 6px;
+            padding: 8px;
+            margin-top: 8px;
+            font-size: 0.85rem;
+            color: #aaa;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .buffer-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        
+        .buffer-size {
+            color: #00d4ff;
+            font-weight: bold;
+        }
+        
+        .switch-status {
+            font-size: 0.9rem;
+            color: #aaa;
+            margin-top: 5px;
+            text-align: right;
+        }
+        
+        .switch-status.on {
+            color: #2ed573;
+        }
+        
+        .switch-status.off {
+            color: #ff4757;
+        }
+        
+        .input-with-btn {
+            display: flex;
+            gap: 10px;
+            margin-top: 8px;
+        }
+        
+        .input-with-btn .control-input {
+            flex: 1;
+        }
+        
+        .input-with-btn .command-btn {
+            width: 80px;
+        }
+        
+        .data-refresh-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 15px;
+        }
+        
+        .data-refresh-controls .buttons-row {
+            margin-top: 0;
+            width: 100%;
+        }
+        
+        .compact-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .compact-label {
+            color: #b0e0e6;
+            font-size: 1rem;
+        }
+        
+        .compact-value {
+            color: #00d4ff;
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+        
+        .error-message {
+            background: rgba(255, 71, 87, 0.2);
+            border: 1px solid rgba(255, 71, 87, 0.5);
+            border-radius: 6px;
+            padding: 10px;
+            margin-top: 12px;
+            color: #ffcc00;
+            font-size: 0.85rem;
+        }
+        
+        .compact-volt-indicator {
+            font-size: 0.85rem;
+            color: #ffcc00;
+            margin-top: 8px;
+            padding-left: 5px;
+        }
+        
+        .control-panel-content {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+        
+        .control-section {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            padding: 15px;
+        }
+        
+        .section-title {
+            color: #b0e0e6;
+            margin-bottom: 12px;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .control-group-compact {
+            margin-bottom: 15px;
+        }
+        
+        .switch-panel-title {
+            color: #00d4ff;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(0, 212, 255, 0.3);
+            display: flex;
+            align-items: center;
+            font-size: 1.2rem;
+        }
+        
+        .switch-panel-title i {
+            margin-right: 10px;
+            font-size: 1rem;
+        }
+        
+        .switch-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .switch-group {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .info-note {
+            background: rgba(0, 100, 200, 0.1);
+            border-left: 4px solid #00d4ff;
+            padding: 10px 15px;
+            margin-top: 15px;
+            font-size: 0.85rem;
+            color: #b0e0e6;
+            border-radius: 0 4px 4px 0;
+        }
+        
+        .current-positive {
+            color: #2ed573;
+        }
+        
+        .current-negative {
+            color: #ff6b6b;
+        }
+        
+        .current-zero {
+            color: #aaa;
+        }
+        
+        .equal-width-panels {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            height: 100%;
+        }
+        
+        .panel-content {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        
+        .battery-panel {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        
+        .control-panel {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        
+        .control-panel-scrollable {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+        
+        .control-panel-scrollable::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .control-panel-scrollable::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 3px;
+        }
+        
+        .control-panel-scrollable::-webkit-scrollbar-thumb {
+            background: rgba(0, 212, 255, 0.3);
+            border-radius: 3px;
+        }
+        
+        .buffer-settings {
+            margin-top: 10px;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 6px;
+        }
+        
+        .buffer-settings label {
+            color: #b0e0e6;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+        }
+        
+        .auto-clear-status {
+            font-size: 0.8rem;
+            margin-top: 5px;
+            padding-left: 20px;
+            color: #aaa;
+        }
+        
+        .auto-clear-status.active {
+            color: #2ed573;
+        }
+        
+        .auto-clear-status.inactive {
+            color: #aaa;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            color: #aaa;
+            font-size: 0.85rem;
+        }
+        
+        .compact-btn {
+            padding: 8px 12px;
+            font-size: 0.9rem;
+            white-space: nowrap; /* 防止文字换行 */
+        }
+        
+        /* 专门为"选择端口"按钮增加宽度 */
+        .select-port-btn {
+            min-width: 100px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="status-bar">
+            <div class="status-item">
+                <div id="statusIndicator" class="status-indicator"></div>
+                <span id="statusText">未连接</span>
+            </div>
+            <div class="connection-controls">
+                <select id="portSelect" class="port-select">
+                    <option value="">选择串口...</option>
+                </select>
+                <select id="baudRate" class="baud-select">
+                    <option value="115200" selected>115200</option>
+                    <option value="9600">9600</option>
+                    <option value="19200">19200</option>
+                    <option value="38400">38400</option>
+                    <option value="57600">57600</option>
+                </select>
+                <button id="requestPortBtn" class="success-btn compact-btn select-port-btn">
+                    选择端口
+                </button>
+                <button id="connectBtn" class="compact-btn"><i class="fas fa-link"></i> 连接</button>
+                <button id="disconnectBtn" disabled class="compact-btn"><i class="fas fa-unlink"></i> 断开</button>
+            </div>
+        </div>
+        
+        <div id="errorContainer" style="display: none;"></div>
+        
+        <div class="main-content">
+            <!-- 左侧：电池状态面板 -->
+            <div class="panel battery-panel">
+                <div class="panel-title">
+                    <i class="fas fa-tachometer-alt"></i> 电池状态监控
+                </div>
+                
+                <div class="panel-content">
+                    <div class="dashboard">
+                        <div class="metric-card">
+                            <div class="metric-label">电池电压</div>
+                            <div class="metric-value" id="batteryVoltage">--.--</div>
+                            <div class="metric-unit">V</div>
+                        </div>
+                        
+                        <div class="metric-card">
+                            <div class="metric-label">电池电流</div>
+                            <div class="metric-value" id="batteryCurrent">--.--</div>
+                            <div class="metric-unit">A</div>
+                        </div>
+                        
+                        <div class="metric-card">
+                            <div class="metric-label">输出端电压</div>
+                            <div class="metric-value" id="outputVoltage">--.--</div>
+                            <div class="metric-unit">V</div>
+                        </div>
+                        
+                        <div class="metric-card">
+                            <div class="metric-label">输入端电流</div>
+                            <div class="metric-value" id="inputCurrent">--.--</div>
+                            <div class="metric-unit">A</div>
+                        </div>
+                    </div>
+                    
+                    <div class="info-note">
+                        <i class="fas fa-info-circle"></i> 电流正负说明: 正值为充电，负值为放电
+                    </div>
+                    
+                    <div class="data-refresh-controls">
+                        <div class="buttons-row">
+                            <button id="refreshBatteryBtn" class="success-btn" disabled>
+                                <i class="fas fa-sync-alt"></i> 刷新数据
+                            </button>
+                            <button id="autoRefreshToggle" class="success-btn">
+                                <i class="fas fa-play"></i> 自动刷新
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 右侧：控制设置面板 -->
+            <div class="panel control-panel">
+                <div class="panel-title">
+                    <i class="fas fa-sliders-h"></i> 控制设置
+                </div>
+                
+                <div class="control-panel-scrollable">
+                    <!-- 开关控制区域 -->
+                    <div class="control-section">
+                        <div class="section-title">
+                            <i class="fas fa-toggle-on"></i> 开关控制
+                        </div>
+                        
+                        <div class="switch-group">
+                            <div class="switch-container">
+                                <div>
+                                    <div class="switch-label">充电开关</div>
+                                    <div id="chargeSwitchStatus" class="switch-status off">关闭</div>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="chargeSwitch">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            
+                            <div class="switch-container">
+                                <div>
+                                    <div class="switch-label">反向OTG开关</div>
+                                    <div id="otgSwitchStatus" class="switch-status off">关闭</div>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="otgSwitch">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="control-panel-content">
+                        <!-- 充电设置 -->
+                        <div class="control-section">
+                            <div class="section-title">
+                                <i class="fas fa-charging-station"></i> 充电设置
+                            </div>
+                            
+                            <div class="control-group-compact">
+                                <div class="compact-row">
+                                    <div class="compact-label">最大充电电流 (0.1-10A)</div>
+                                    <div class="compact-value" id="maxChargeCurrentValue">2.0</div>
+                                </div>
+                                <input type="range" class="range-slider" id="maxChargeCurrentSlider" min="0.1" max="10.0" step="0.1" value="2.0">
+                                <div class="range-labels">
+                                    <span>0.1A</span>
+                                    <span>10A</span>
+                                </div>
+                                <div class="input-with-btn">
+                                    <input type="number" id="manualMaxChargeCurrent" class="control-input" placeholder="电流 (A)" min="0.1" max="10.0" step="0.1" value="2.0">
+                                    <button id="setMaxChargeCurrentBtn" class="command-btn" disabled>设置</button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 输出设置 -->
+                        <div class="control-section">
+                            <div class="section-title">
+                                <i class="fas fa-cog"></i> 反向输出设置
+                            </div>
+                            
+                            <div class="control-group">
+                                <div class="compact-row">
+                                    <div class="compact-label">输出电压 (5-30V)</div>
+                                    <div class="compact-value" id="reverseVoltageValue">15.0</div>
+                                </div>
+                                <input type="range" class="range-slider" id="reverseVoltageSlider" min="5.0" max="30.0" step="0.1" value="15.0">
+                                <div class="range-labels">
+                                    <span>5V</span>
+                                    <span>30V</span>
+                                </div>
+                                <div class="input-with-btn">
+                                    <input type="number" id="manualReverseVoltage" class="control-input" placeholder="电压 (V)" min="5.0" max="30.0" step="0.1" value="15.0">
+                                    <button id="setReverseVoltageBtn" class="command-btn" disabled>设置</button>
+                                </div>
+                            </div>
+                            
+                            <div class="control-group">
+                                <div class="compact-row">
+                                    <div class="compact-label">输出最大电流 (0.5-10A)</div>
+                                    <div class="compact-value" id="reverseMaxCurrentValue">3.0</div>
+                                </div>
+                                <input type="range" class="range-slider" id="reverseMaxCurrentSlider" min="0.5" max="10.0" step="0.1" value="3.0">
+                                <div class="range-labels">
+                                    <span>0.5A</span>
+                                    <span>10A</span>
+                                </div>
+                                <div class="input-with-btn">
+                                    <input type="number" id="manualReverseMaxCurrent" class="control-input" placeholder="电流 (A)" min="0.5" max="10.0" step="0.1" value="3.0">
+                                    <button id="setReverseMaxCurrentBtn" class="command-btn" disabled>设置</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="compact-volt-indicator">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        OTG输出范围: 5-30V (步进0.1V), 0.5-10A (步进0.1A), 通信单位: mV/mA
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>电池与OTG控制系统 &copy; 2023 | 基于Web Serial API | Electron版本</p>
+        </footer>
+    </div>
 
-    <body>
-        <main class="container">
-            <h1>Welcome to PakePlus</h1>
-            <form class="row" id="greet-form">
-                <input id="inputValue" placeholder="Enter a something..." />
-            </form>
-            <div class="resultBox">
-                <span>result: </span>
-                <span id="result"></span>
-            </div>
-            <div class="invokeBox">
-                <button id="openUrl">open_url_browser</button>
-                <button id="openUrlNew">open_url_new</button>
-                <button id="runCommand">run_command</button>
-                <button id="downloadFile">download_file</button>
-                <button id="getExeDir">get_exe_dir</button>
-                <button id="getEnvVar">get_env_var</button>
-                <button id="findPort">find_port</button>
-            </div>
-        </main>
-    </body>
+    <script>
+        // 全局变量
+        let port = null;
+        let reader = null;
+        let writer = null;
+        let isConnected = false;
+        let autoRefreshInterval = null;
+        let isAutoRefresh = false;
+        let readLoopActive = false;
+        
+        // 接收缓冲区
+        let receiveBuffer = '';
+        let bufferMaxSize = 1024;
+        let bufferLastUpdateTime = Date.now();
+        
+        // 电池数据
+        let batteryData = {
+            voltage: 0,
+            current: 0,
+            outputVoltage: 0,
+            inputCurrent: 0
+        };
+        
+        // 设备设置
+        let deviceSettings = {
+            chargeEnabled: false,
+            otgEnabled: false,
+            reverseVoltage: 15.0,
+            reverseMaxCurrent: 3.0,
+            maxChargeCurrent: 2.0
+        };
+        
+        // DOM元素
+        const portSelect = document.getElementById('portSelect');
+        const baudRateSelect = document.getElementById('baudRate');
+        const requestPortBtn = document.getElementById('requestPortBtn');
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const statusIndicator = document.getElementById('statusIndicator');
+        const statusText = document.getElementById('statusText');
+        const errorContainer = document.getElementById('errorContainer');
+        
+        // 开关状态显示元素
+        const chargeSwitchStatus = document.getElementById('chargeSwitchStatus');
+        const otgSwitchStatus = document.getElementById('otgSwitchStatus');
+        
+        // 电池数据显示
+        const batteryVoltageEl = document.getElementById('batteryVoltage');
+        const batteryCurrentEl = document.getElementById('batteryCurrent');
+        const outputVoltageEl = document.getElementById('outputVoltage');
+        const inputCurrentEl = document.getElementById('inputCurrent');
+        
+        // 控制元素
+        const chargeSwitch = document.getElementById('chargeSwitch');
+        const otgSwitch = document.getElementById('otgSwitch');
+        
+        // 反向输出设置元素
+        const reverseVoltageSlider = document.getElementById('reverseVoltageSlider');
+        const reverseMaxCurrentSlider = document.getElementById('reverseMaxCurrentSlider');
+        const reverseVoltageValueEl = document.getElementById('reverseVoltageValue');
+        const reverseMaxCurrentValueEl = document.getElementById('reverseMaxCurrentValue');
+        const manualReverseVoltageInput = document.getElementById('manualReverseVoltage');
+        const manualReverseMaxCurrentInput = document.getElementById('manualReverseMaxCurrent');
+        const setReverseVoltageBtn = document.getElementById('setReverseVoltageBtn');
+        const setReverseMaxCurrentBtn = document.getElementById('setReverseMaxCurrentBtn');
+        
+        // 充电设置元素
+        const maxChargeCurrentSlider = document.getElementById('maxChargeCurrentSlider');
+        const maxChargeCurrentValueEl = document.getElementById('maxChargeCurrentValue');
+        const manualMaxChargeCurrentInput = document.getElementById('manualMaxChargeCurrent');
+        const setMaxChargeCurrentBtn = document.getElementById('setMaxChargeCurrentBtn');
+        
+        // 其他控制元素
+        const refreshBatteryBtn = document.getElementById('refreshBatteryBtn');
+        const autoRefreshToggle = document.getElementById('autoRefreshToggle');
+        
+        // 更新开关状态显示
+        function updateSwitchStatus() {
+            if (deviceSettings.chargeEnabled) {
+                chargeSwitchStatus.textContent = '开启';
+                chargeSwitchStatus.className = 'switch-status on';
+            } else {
+                chargeSwitchStatus.textContent = '关闭';
+                chargeSwitchStatus.className = 'switch-status off';
+            }
+            
+            if (deviceSettings.otgEnabled) {
+                otgSwitchStatus.textContent = '开启';
+                otgSwitchStatus.className = 'switch-status on';
+            } else {
+                otgSwitchStatus.textContent = '关闭';
+                otgSwitchStatus.className = 'switch-status off';
+            }
+        }
+        
+        // 更新电流显示颜色
+        function updateCurrentDisplay() {
+            // 电池电流
+            const battCurrent = parseFloat(batteryCurrentEl.textContent);
+            if (!isNaN(battCurrent)) {
+                if (battCurrent > 0) {
+                    batteryCurrentEl.className = 'metric-value current-positive';
+                } else if (battCurrent < 0) {
+                    batteryCurrentEl.className = 'metric-value current-negative';
+                } else {
+                    batteryCurrentEl.className = 'metric-value current-zero';
+                }
+            }
+            
+            // 输入电流
+            const inCurrent = parseFloat(inputCurrentEl.textContent);
+            if (!isNaN(inCurrent)) {
+                if (inCurrent > 0) {
+                    inputCurrentEl.className = 'metric-value current-positive';
+                } else if (inCurrent < 0) {
+                    inputCurrentEl.className = 'metric-value current-negative';
+                } else {
+                    inputCurrentEl.className = 'metric-value current-zero';
+                }
+            }
+        }
+        
+        // 显示错误消息
+        function showError(message) {
+            errorContainer.innerHTML = `
+                <div class="error-message">
+                    <i class="fas fa-exclamation-circle"></i> ${message}
+                </div>
+            `;
+            errorContainer.style.display = 'block';
+            
+            // 5秒后自动隐藏错误消息
+            setTimeout(() => {
+                errorContainer.style.display = 'none';
+            }, 5000);
+        }
+        
+        // 检查浏览器是否支持Web Serial API
+        function checkSupport() {
+            if (!('serial' in navigator)) {
+                const errorMsg = '您的环境不支持Web Serial API。';
+                showError(errorMsg);
+                return false;
+            }
+            return true;
+        }
+        
+        // 扫描已授权的串口（不需要用户手势）
+        async function scanPorts() {
+            if (!checkSupport()) return;
+            
+            try {
+                // 更新状态指示器
+                statusIndicator.className = 'status-indicator scanning';
+                statusText.textContent = '扫描串口中...';
+                
+                // 获取已经授权的端口列表（这不需要用户手势）
+                const ports = await navigator.serial.getPorts();
+                updatePortList(ports);
+                
+                if (ports.length === 0) {
+                    console.log('没有已授权的串口，请点击"选择端口"按钮手动选择');
+                } else {
+                    console.log(`已找到 ${ports.length} 个已授权的串口`);
+                }
+                
+                // 恢复状态指示器
+                if (!isConnected) {
+                    statusIndicator.className = 'status-indicator';
+                    statusText.textContent = '未连接';
+                }
+                
+            } catch (error) {
+                console.error('扫描串口时出错:', error);
+                showError(`扫描串口失败: ${error.message}`);
+                
+                if (!isConnected) {
+                    statusIndicator.className = 'status-indicator';
+                    statusText.textContent = '未连接';
+                }
+            }
+        }
+        
+        // 请求用户选择端口（仅在用户点击时调用）
+        async function requestPortSelection() {
+            if (!checkSupport()) return;
+            
+            try {
+                // 更新状态指示器
+                statusIndicator.className = 'status-indicator scanning';
+                statusText.textContent = '等待用户选择端口...';
+                requestPortBtn.disabled = true;
+                
+                // 请求用户选择端口（这个必须在用户手势中调用）
+                const selectedPort = await navigator.serial.requestPort();
+                
+                // 用户选择了端口后，获取所有已授权的端口
+                const ports = await navigator.serial.getPorts();
+                updatePortList(ports);
+                
+                // 恢复状态指示器
+                if (!isConnected) {
+                    statusIndicator.className = 'status-indicator';
+                    statusText.textContent = '未连接';
+                }
+                
+                // 自动选择刚刚选择的端口
+                if (ports.length > 0) {
+                    // 查找刚刚选择的端口
+                    const selectedIndex = ports.length - 1;
+                    portSelect.value = selectedIndex;
+                    console.log('用户已选择端口，已自动选中');
+                }
+                
+                requestPortBtn.disabled = false;
+                
+            } catch (error) {
+                if (error.name === 'NotFoundError') {
+                    console.log('用户取消了端口选择');
+                    // 用户取消选择，不做任何操作
+                } else {
+                    console.error('请求端口权限时出错:', error);
+                    showError(`请求端口权限失败: ${error.message}`);
+                }
+                
+                // 恢复状态指示器
+                if (!isConnected) {
+                    statusIndicator.className = 'status-indicator';
+                    statusText.textContent = '未连接';
+                }
+                
+                requestPortBtn.disabled = false;
+            }
+        }
+        
+        // 更新串口列表
+        function updatePortList(ports) {
+            portSelect.innerHTML = '<option value="">选择串口...</option>';
+            
+            if (ports.length === 0) {
+                portSelect.innerHTML += '<option value="">未找到串口设备</option>';
+                return;
+            }
+            
+            ports.forEach((port, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                
+                // 尝试获取更多串口信息
+                const info = port.getInfo();
+                let portName = `串口 ${index + 1}`;
+                
+                if (info.usbVendorId && info.usbProductId) {
+                    portName = `串口 ${index + 1} (USB: ${info.usbVendorId.toString(16)}:${info.usbProductId.toString(16)})`;
+                }
+                
+                option.textContent = portName;
+                portSelect.appendChild(option);
+            });
+        }
+        
+        // 连接串口
+        async function connectToPort() {
+            if (!checkSupport()) return;
+            
+            const ports = await navigator.serial.getPorts();
+            const selectedIndex = parseInt(portSelect.value);
+            
+            if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= ports.length) {
+                showError('请先选择一个有效的串口');
+                return;
+            }
+            
+            // 如果已经连接，先断开
+            if (isConnected) {
+                await disconnectFromPort();
+            }
+            
+            port = ports[selectedIndex];
+            const baudRate = parseInt(baudRateSelect.value);
+            
+            try {
+                // 更新状态
+                statusIndicator.className = 'status-indicator scanning';
+                statusText.textContent = '连接中...';
+                connectBtn.disabled = true;
+                
+                // 打开串口
+                await port.open({ 
+                    baudRate: baudRate,
+                    dataBits: 8,
+                    stopBits: 1,
+                    parity: 'none',
+                    flowControl: 'none',
+                    bufferSize: 1024
+                });
+                
+                // 清空接收缓冲区
+                receiveBuffer = '';
+                
+                // 设置连接状态
+                isConnected = true;
+                updateConnectionStatus();
+                
+                // 启用/禁用相关按钮
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+                refreshBatteryBtn.disabled = false;
+                setReverseVoltageBtn.disabled = false;
+                setReverseMaxCurrentBtn.disabled = false;
+                setMaxChargeCurrentBtn.disabled = false;
+                
+                // 开始读取数据
+                startReading();
+                
+                // 自动发送测试命令
+                setTimeout(() => {
+                    sendCommand('TEST');
+                    // 获取当前设置
+                    setTimeout(() => {
+                        sendCommand('GET_SETTINGS');
+                    }, 200);
+                }, 500);
+                
+            } catch (error) {
+                console.error('连接串口时出错:', error);
+                
+                // 处理特定错误
+                let errorMessage = `连接串口失败: ${error.message}`;
+                if (error.message.includes('Failed to open serial port')) {
+                    errorMessage = '串口打开失败，可能已被其他程序占用';
+                } else if (error.message.includes('Access denied')) {
+                    errorMessage = '串口访问被拒绝，请检查权限';
+                }
+                
+                showError(errorMessage);
+                
+                // 恢复状态
+                connectBtn.disabled = false;
+                statusIndicator.className = 'status-indicator';
+                statusText.textContent = '未连接';
+            }
+        }
+        
+        // 开始读取数据
+        async function startReading() {
+            if (!port || !port.readable || readLoopActive) return;
+            
+            readLoopActive = true;
+            const decoder = new TextDecoder();
+            
+            try {
+                while (port.readable && isConnected) {
+                    reader = port.readable.getReader();
+                    
+                    try {
+                        while (true) {
+                            const { value, done } = await reader.read();
+                            
+                            if (done) {
+                                // 读取器被取消或串口关闭
+                                break;
+                            }
+                            
+                            // 更新缓冲区最后更新时间
+                            bufferLastUpdateTime = Date.now();
+                            
+                            // 文本显示
+                            const text = decoder.decode(value);
+                            
+                            // 将数据添加到接收缓冲区
+                            receiveBuffer += text;
+                            
+                            // 检查缓冲区是否有完整行（以换行符结尾）
+                            processReceiveBuffer();
+                            
+                            // 检查缓冲区是否过大
+                            if (receiveBuffer.length > bufferMaxSize) {
+                                // 清空缓冲区
+                                receiveBuffer = '';
+                            }
+                        }
+                    } catch (error) {
+                        console.error('读取数据时出错:', error);
+                    } finally {
+                        reader.releaseLock();
+                    }
+                }
+            } catch (error) {
+                console.error('读取循环错误:', error);
+            } finally {
+                readLoopActive = false;
+            }
+        }
+        
+        // 处理接收缓冲区中的数据
+        function processReceiveBuffer() {
+            // 查找缓冲区中的换行符
+            let newlineIndex = receiveBuffer.indexOf('\n');
+            
+            while (newlineIndex !== -1) {
+                // 提取完整行（包括换行符前的所有字符）
+                const completeLine = receiveBuffer.substring(0, newlineIndex);
+                
+                // 从缓冲区中移除已处理的部分（包括换行符）
+                receiveBuffer = receiveBuffer.substring(newlineIndex + 1);
+                
+                // 更新最后更新时间
+                bufferLastUpdateTime = Date.now();
+                
+                // 处理完整行
+                if (completeLine.trim().length > 0) {
+                    processCompleteLine(completeLine.trim());
+                }
+                
+                // 查找下一个换行符
+                newlineIndex = receiveBuffer.indexOf('\n');
+            }
+        }
+        
+        // 断开串口连接
+        async function disconnectFromPort() {
+            if (!port) return;
+            
+            // 停止自动刷新
+            stopAutoRefresh();
+            
+            try {
+                // 停止读取循环
+                isConnected = false;
+                
+                // 停止读取器
+                if (reader) {
+                    try {
+                        await reader.cancel();
+                    } catch (e) {
+                        // 忽略取消错误
+                    }
+                    reader = null;
+                }
+                
+                // 关闭写入器
+                if (writer) {
+                    try {
+                        writer.close();
+                    } catch (e) {
+                        // 忽略关闭错误
+                    }
+                    writer = null;
+                }
+                
+                // 关闭串口
+                try {
+                    await port.close();
+                } catch (error) {
+                    console.error('关闭串口时出错:', error);
+                }
+                port = null;
+                
+                // 清空接收缓冲区
+                receiveBuffer = '';
+                
+                // 更新状态
+                updateConnectionStatus();
+                
+                // 启用/禁用相关按钮
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+                refreshBatteryBtn.disabled = true;
+                setReverseVoltageBtn.disabled = true;
+                setReverseMaxCurrentBtn.disabled = true;
+                setMaxChargeCurrentBtn.disabled = true;
+                
+            } catch (error) {
+                console.error('断开串口连接时出错:', error);
+                showError(`断开连接失败: ${error.message}`);
+            }
+        }
+        
+        // 更新连接状态显示
+        function updateConnectionStatus() {
+            if (isConnected) {
+                statusIndicator.className = 'status-indicator connected';
+                statusText.textContent = '已连接';
+            } else {
+                statusIndicator.className = 'status-indicator';
+                statusText.textContent = '未连接';
+            }
+        }
+        
+        // 处理完整的行数据
+        function processCompleteLine(line) {
+            // 解析数据
+            parseReceivedData(line);
+        }
+        
+        // 解析接收到的数据 (所有电压电流数据单位为mV/mA)
+        function parseReceivedData(data) {
+            // 数据已经过清理（去除了换行符和空格）
+            const cleanData = data;
+            
+            console.log(`解析数据: "${cleanData}"`);
+            
+            // 解析电池数据 (设备返回的是mV和mA)
+            if (cleanData.startsWith('BATT_V=')) {
+                const params = cleanData.split(',');
+                
+                params.forEach(param => {
+                    const [key, value] = param.split('=');
+                    
+                    switch(key) {
+                        case 'BATT_V':
+                            // 设备返回的是mV，转换为V显示
+                            const voltage_mV = parseInt(value);
+                            batteryData.voltage = voltage_mV / 1000;
+                            batteryVoltageEl.textContent = batteryData.voltage.toFixed(2);
+                            break;
+                        case 'BATT_I':
+                            // 设备返回的是mA，转换为A显示
+                            const current_mA = parseInt(value);
+                            batteryData.current = current_mA / 1000;
+                            batteryCurrentEl.textContent = batteryData.current.toFixed(2);
+                            break;
+                        case 'OUT_V':
+                            // 设备返回的是mV，转换为V显示
+                            const outVoltage_mV = parseInt(value);
+                            batteryData.outputVoltage = outVoltage_mV / 1000;
+                            outputVoltageEl.textContent = batteryData.outputVoltage.toFixed(2);
+                            break;
+                        case 'IN_I':
+                            // 设备返回的是mA，转换为A显示
+                            const inCurrent_mA = parseInt(value);
+                            batteryData.inputCurrent = inCurrent_mA / 1000;
+                            inputCurrentEl.textContent = batteryData.inputCurrent.toFixed(2);
+                            break;
+                    }
+                });
+                
+                // 更新电流显示颜色
+                updateCurrentDisplay();
+            }
+            // 解析充电开关响应
+            else if (cleanData.startsWith('OK_CHARGE:')) {
+                const statusStr = cleanData.substring(10);
+                const enabled = statusStr === '1';
+                deviceSettings.chargeEnabled = enabled;
+                chargeSwitch.checked = enabled;
+                updateSwitchStatus();
+            }
+            // 解析OTG开关响应
+            else if (cleanData.startsWith('OK_OTG:')) {
+                const statusStr = cleanData.substring(7);
+                const enabled = statusStr === '1';
+                deviceSettings.otgEnabled = enabled;
+                otgSwitch.checked = enabled;
+                updateSwitchStatus();
+            }
+            // 解析反向电压设置响应 (设备返回的是mV)
+            else if (cleanData.startsWith('OK_REVERSE_V:')) {
+                const voltageStr = cleanData.substring(13);
+                const voltage_mV = parseInt(voltageStr);
+                if (!isNaN(voltage_mV)) {
+                    // 将mV转换为V显示
+                    const voltage_V = voltage_mV / 1000;
+                    deviceSettings.reverseVoltage = voltage_V;
+                    reverseVoltageSlider.value = voltage_V;
+                    reverseVoltageValueEl.textContent = voltage_V.toFixed(1);
+                    manualReverseVoltageInput.value = voltage_V.toFixed(1);
+                }
+            }
+            // 解析反向电流设置响应 (设备返回的是mA)
+            else if (cleanData.startsWith('OK_REVERSE_I:')) {
+                const currentStr = cleanData.substring(13);
+                const current_mA = parseInt(currentStr);
+                if (!isNaN(current_mA)) {
+                    // 将mA转换为A显示
+                    const current_A = current_mA / 1000;
+                    deviceSettings.reverseMaxCurrent = current_A;
+                    reverseMaxCurrentSlider.value = current_A;
+                    reverseMaxCurrentValueEl.textContent = current_A.toFixed(1);
+                    manualReverseMaxCurrentInput.value = current_A.toFixed(1);
+                }
+            }
+            // 解析最大充电电流设置响应 (设备返回的是mA)
+            else if (cleanData.startsWith('OK_MAX_CHARGE_I:')) {
+                const currentStr = cleanData.substring(16);
+                const current_mA = parseInt(currentStr);
+                if (!isNaN(current_mA)) {
+                    // 将mA转换为A显示
+                    const current_A = current_mA / 1000;
+                    deviceSettings.maxChargeCurrent = current_A;
+                    maxChargeCurrentSlider.value = current_A;
+                    maxChargeCurrentValueEl.textContent = current_A.toFixed(1);
+                    manualMaxChargeCurrentInput.value = current_A.toFixed(1);
+                }
+            }
+            // 错误响应
+            else if (cleanData === 'ERROR') {
+                showError('设备返回错误响应');
+            }
+            // 测试响应
+            else if (cleanData === 'TEST_OK') {
+                console.log('测试命令成功，设备响应正常');
+            }
+            // 复位响应
+            else if (cleanData === 'RESET_OK') {
+                console.log('设备复位成功');
+            }
+            // 设备主动发送的状态信息
+            else if (cleanData.startsWith('CHARGE=')) {
+                const params = cleanData.split(',');
+                
+                params.forEach(param => {
+                    const [key, value] = param.split('=');
+                    
+                    switch(key) {
+                        case 'CHARGE':
+                            deviceSettings.chargeEnabled = value === '1';
+                            chargeSwitch.checked = deviceSettings.chargeEnabled;
+                            updateSwitchStatus();
+                            break;
+                        case 'OTG':
+                            deviceSettings.otgEnabled = value === '1';
+                            otgSwitch.checked = deviceSettings.otgEnabled;
+                            updateSwitchStatus();
+                            break;
+                        case 'RV':
+                            // 设备返回的是mV，需要转换为V
+                            const voltage_mV = parseInt(value);
+                            deviceSettings.reverseVoltage = voltage_mV / 1000;
+                            reverseVoltageSlider.value = deviceSettings.reverseVoltage;
+                            reverseVoltageValueEl.textContent = deviceSettings.reverseVoltage.toFixed(1);
+                            manualReverseVoltageInput.value = deviceSettings.reverseVoltage.toFixed(1);
+                            break;
+                        case 'RI':
+                            // 设备返回的是mA，需要转换为A
+                            const current_mA = parseInt(value);
+                            deviceSettings.reverseMaxCurrent = current_mA / 1000;
+                            reverseMaxCurrentSlider.value = deviceSettings.reverseMaxCurrent;
+                            reverseMaxCurrentValueEl.textContent = deviceSettings.reverseMaxCurrent.toFixed(1);
+                            manualReverseMaxCurrentInput.value = deviceSettings.reverseMaxCurrent.toFixed(1);
+                            break;
+                        case 'MAX_CI':
+                            // 最大充电电流，设备返回的是mA，需要转换为A
+                            const maxChargeCurrent_mA = parseInt(value);
+                            deviceSettings.maxChargeCurrent = maxChargeCurrent_mA / 1000;
+                            maxChargeCurrentSlider.value = deviceSettings.maxChargeCurrent;
+                            maxChargeCurrentValueEl.textContent = deviceSettings.maxChargeCurrent.toFixed(1);
+                            manualMaxChargeCurrentInput.value = deviceSettings.maxChargeCurrent.toFixed(1);
+                            break;
+                    }
+                });
+            }
+        }
+        
+        // 发送命令到串口（自动添加\n）
+        async function sendCommand(command) {
+            if (!port || !port.writable) {
+                showError('请先连接到串口');
+                return;
+            }
+            
+            if (!command || command.trim() === '') {
+                showError('请输入有效的命令');
+                return;
+            }
+            
+            try {
+                // 确保命令以\n结尾
+                const commandWithNewline = command.endsWith('\n') ? command : command + '\n';
+                const encoder = new TextEncoder();
+                const dataToSend = encoder.encode(commandWithNewline);
+                
+                // 创建写入器并发送数据
+                writer = port.writable.getWriter();
+                await writer.write(dataToSend);
+                await writer.releaseLock();
+                writer = null;
+                
+            } catch (error) {
+                console.error('发送命令时出错:', error);
+                showError(`发送失败: ${error.message}`);
+                
+                // 如果发送失败，可能是连接已断开
+                if (error.message.includes('The port has been closed')) {
+                    disconnectFromPort();
+                }
+            }
+        }
+        
+        // 获取电池数据
+        function getBatteryData() {
+            sendCommand('GET_DATA');
+        }
+        
+        // 设置充电开关
+        function setChargeSwitch(enabled) {
+            sendCommand(`SET_CHARGE:${enabled ? '1' : '0'}`);
+            // 立即更新本地状态
+            deviceSettings.chargeEnabled = enabled;
+            updateSwitchStatus();
+        }
+        
+        // 设置OTG开关
+        function setOTGSwitch(enabled) {
+            sendCommand(`SET_OTG:${enabled ? '1' : '0'}`);
+            // 立即更新本地状态
+            deviceSettings.otgEnabled = enabled;
+            updateSwitchStatus();
+        }
+        
+        // 设置反向输出电压 (页面显示V，发送mV)
+        function setReverseVoltage(voltage) {
+            // 电压值转换为整数mV，步进0.1V对应100mV
+            const voltage_mV = Math.round(voltage * 1000);
+            sendCommand(`SET_REVERSE_V:${voltage_mV}`);
+            // 立即更新本地状态
+            deviceSettings.reverseVoltage = voltage;
+        }
+        
+        // 设置反向输出最大电流 (页面显示A，发送mA)
+        function setReverseMaxCurrent(current) {
+            // 电流值转换为整数mA，步进0.1A对应100mA
+            const current_mA = Math.round(current * 1000);
+            sendCommand(`SET_REVERSE_I:${current_mA}`);
+            // 立即更新本地状态
+            deviceSettings.reverseMaxCurrent = current;
+        }
+        
+        // 设置最大充电电流 (页面显示A，发送mA)
+        function setMaxChargeCurrent(current) {
+            // 电流值转换为整数mA，步进0.1A对应100mA
+            const current_mA = Math.round(current * 1000);
+            sendCommand(`SET_MAX_CHARGE_I:${current_mA}`);
+            // 立即更新本地状态
+            deviceSettings.maxChargeCurrent = current;
+        }
+        
+        // 开始自动刷新
+        function startAutoRefresh() {
+            if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+            
+            autoRefreshInterval = setInterval(() => {
+                if (isConnected) {
+                    getBatteryData();
+                }
+            }, 2000); // 每2秒刷新一次
+            
+            autoRefreshToggle.innerHTML = '<i class="fas fa-pause"></i> 停止刷新';
+            isAutoRefresh = true;
+        }
+        
+        // 停止自动刷新
+        function stopAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+            }
+            
+            autoRefreshToggle.innerHTML = '<i class="fas fa-play"></i> 自动刷新';
+            isAutoRefresh = false;
+        }
+        
+        // 开关切换处理函数
+        function handleChargeSwitchChange() {
+            if (!isConnected) {
+                showError('请先连接到设备');
+                // 恢复原来的状态
+                chargeSwitch.checked = deviceSettings.chargeEnabled;
+                updateSwitchStatus();
+                return;
+            }
+            
+            setChargeSwitch(chargeSwitch.checked);
+        }
+        
+        function handleOtgSwitchChange() {
+            if (!isConnected) {
+                showError('请先连接到设备');
+                // 恢复原来的状态
+                otgSwitch.checked = deviceSettings.otgEnabled;
+                updateSwitchStatus();
+                return;
+            }
+            
+            setOTGSwitch(otgSwitch.checked);
+        }
+        
+        // 初始化事件监听器
+        function initEventListeners() {
+            // 选择端口按钮
+            requestPortBtn.addEventListener('click', requestPortSelection);
+            
+            // 连接/断开串口
+            connectBtn.addEventListener('click', connectToPort);
+            disconnectBtn.addEventListener('click', disconnectFromPort);
+            
+            // 开关控制 - 添加事件监听
+            chargeSwitch.addEventListener('change', handleChargeSwitchChange);
+            otgSwitch.addEventListener('change', handleOtgSwitchChange);
+            
+            // 电池数据控制
+            refreshBatteryBtn.addEventListener('click', getBatteryData);
+            autoRefreshToggle.addEventListener('click', () => {
+                if (isAutoRefresh) {
+                    stopAutoRefresh();
+                } else {
+                    startAutoRefresh();
+                }
+            });
+            
+            // 反向输出设置
+            reverseVoltageSlider.addEventListener('input', () => {
+                const value = parseFloat(reverseVoltageSlider.value);
+                // 显示一位小数
+                reverseVoltageValueEl.textContent = value.toFixed(1);
+                manualReverseVoltageInput.value = value.toFixed(1);
+            });
+            
+            reverseMaxCurrentSlider.addEventListener('input', () => {
+                const value = parseFloat(reverseMaxCurrentSlider.value);
+                // 显示一位小数
+                reverseMaxCurrentValueEl.textContent = value.toFixed(1);
+                manualReverseMaxCurrentInput.value = value.toFixed(1);
+            });
+            
+            manualReverseVoltageInput.addEventListener('change', () => {
+                let value = parseFloat(manualReverseVoltageInput.value);
+                if (!isNaN(value)) {
+                    // 确保在范围内
+                    value = Math.max(5.0, Math.min(30.0, value));
+                    // 对齐到0.1V步进
+                    value = Math.round(value * 10) / 10;
+                    reverseVoltageSlider.value = value;
+                    reverseVoltageValueEl.textContent = value.toFixed(1);
+                    manualReverseVoltageInput.value = value.toFixed(1);
+                } else {
+                    manualReverseVoltageInput.value = deviceSettings.reverseVoltage.toFixed(1);
+                }
+            });
+            
+            manualReverseMaxCurrentInput.addEventListener('change', () => {
+                let value = parseFloat(manualReverseMaxCurrentInput.value);
+                if (!isNaN(value)) {
+                    // 确保在范围内
+                    value = Math.max(0.5, Math.min(10.0, value));
+                    // 对齐到0.1A步进
+                    value = Math.round(value * 10) / 10;
+                    reverseMaxCurrentSlider.value = value;
+                    reverseMaxCurrentValueEl.textContent = value.toFixed(1);
+                    manualReverseMaxCurrentInput.value = value.toFixed(1);
+                } else {
+                    manualReverseMaxCurrentInput.value = deviceSettings.reverseMaxCurrent.toFixed(1);
+                }
+            });
+            
+            // 充电设置
+            maxChargeCurrentSlider.addEventListener('input', () => {
+                const value = parseFloat(maxChargeCurrentSlider.value);
+                // 显示一位小数
+                maxChargeCurrentValueEl.textContent = value.toFixed(1);
+                manualMaxChargeCurrentInput.value = value.toFixed(1);
+            });
+            
+            manualMaxChargeCurrentInput.addEventListener('change', () => {
+                let value = parseFloat(manualMaxChargeCurrentInput.value);
+                if (!isNaN(value)) {
+                    // 确保在范围内
+                    value = Math.max(0.1, Math.min(10.0, value));
+                    // 对齐到0.1A步进
+                    value = Math.round(value * 10) / 10;
+                    maxChargeCurrentSlider.value = value;
+                    maxChargeCurrentValueEl.textContent = value.toFixed(1);
+                    manualMaxChargeCurrentInput.value = value.toFixed(1);
+                } else {
+                    manualMaxChargeCurrentInput.value = deviceSettings.maxChargeCurrent.toFixed(1);
+                }
+            });
+            
+            // 设置按钮
+            setReverseVoltageBtn.addEventListener('click', () => {
+                const value = parseFloat(manualReverseVoltageInput.value);
+                if (!isNaN(value) && value >= 5.0 && value <= 30.0) {
+                    setReverseVoltage(value);
+                } else {
+                    showError('电压必须在5.0V到30.0V之间');
+                }
+            });
+            
+            setReverseMaxCurrentBtn.addEventListener('click', () => {
+                const value = parseFloat(manualReverseMaxCurrentInput.value);
+                if (!isNaN(value) && value >= 0.5 && value <= 10.0) {
+                    setReverseMaxCurrent(value);
+                } else {
+                    showError('电流必须在0.5A到10.0A之间');
+                }
+            });
+            
+            setMaxChargeCurrentBtn.addEventListener('click', () => {
+                const value = parseFloat(manualMaxChargeCurrentInput.value);
+                if (!isNaN(value) && value >= 0.1 && value <= 10.0) {
+                    setMaxChargeCurrent(value);
+                } else {
+                    showError('电流必须在0.1A到10.0A之间');
+                }
+            });
+            
+            // 页面卸载时断开连接
+            window.addEventListener('beforeunload', () => {
+                if (isConnected) {
+                    disconnectFromPort();
+                }
+            });
+        }
+        
+        // 初始化应用
+        function initApp() {
+            if (!checkSupport()) {
+                document.body.innerHTML = `
+                    <div class="container" style="text-align: center; padding: 50px;">
+                        <h1 style="color: #ff6b6b;">环境不支持</h1>
+                        <p>您的环境不支持Web Serial API，无法使用此工具。</p>
+                        <p>请确保使用支持Web Serial API的环境。</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            initEventListeners();
+            updateConnectionStatus();
+            updateSwitchStatus();
+            
+            // 初始化显示值
+            reverseVoltageValueEl.textContent = reverseVoltageSlider.value;
+            reverseMaxCurrentValueEl.textContent = reverseMaxCurrentSlider.value;
+            maxChargeCurrentValueEl.textContent = maxChargeCurrentSlider.value;
+            
+            // 初始化时只扫描已有端口，不请求新端口
+            scanPorts();
+            
+            console.log('电池与OTG控制系统已初始化');
+        }
+        
+        // 页面加载完成后初始化应用
+        document.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
 </html>
